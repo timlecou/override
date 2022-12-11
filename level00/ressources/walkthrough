@@ -1,0 +1,14 @@
+When I execute the binary it prints a header with "level00" on it and then ask for password.
+
+Disassembling the binary lets me know that the password is 0x149c == 5276 in decimal.
+
+$ ./level00
+***********************************
+* 	     -Level00 -		  *
+***********************************
+Password:5276
+
+Authenticated!
+$ cat /home/users/level01/.pass
+uSq2ehEGT6c9S24zbshexZQBXUGrncxn5sD5QfGL
+$

