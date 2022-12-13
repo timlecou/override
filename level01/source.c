@@ -69,6 +69,7 @@ int main(void)
 	verif = 0;
 	puts("********* ADMIN LOGIN PROMPT *********");
 	printf("Enter Username: ");
+	
 	fgets(a_user_name, 256, stdin);
 	verif = verify_user_name();
 	if (verif == 0) {
