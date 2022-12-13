@@ -1,28 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 
-void	clear_stdin(void)
-{
-	char	x = 0;
-
-	while (1)
-	{
-		x = getchar();
-		if (x == '\n' || x == EOF)
-			break ;
-	}
-}
-
-unsigned int	get_unum(void)
-{
-	unsigned int	input;
-
-	fflush(stdout);
-	scanf("%u", &input);
-	clear_stdin();
-	return (input);
-}
-
 int	store_number(int *tab)
 {
 	unsigned int	input = 0;
@@ -30,9 +8,9 @@ int	store_number(int *tab)
 
 	// Read input and index
 	printf(" Number: ");
-	input = get_unum();
+	scanf("%u", input);
 	printf(" Index: ");
-	index = get_unum();
+	scanf("%u", index);
 
 	// Reserved for wil!
 	if ( index % 3 == 0 || (input >> 24) == 183)
